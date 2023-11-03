@@ -31,11 +31,11 @@ ENV CMTHOME /cometbft
 RUN apk update && \
     apk upgrade && \
     apk --no-cache add curl jq bash && \
-    addgroup tmuser && \
-    adduser -S -G tmuser tmuser -h "$CMTHOME"
+    addgroup cometbft && \
+    adduser -S -G cometbft cometbft -h "$CMTHOME"
 
-# Run the container with tmuser by default. (UID=100, GID=1000)
-USER tmuser
+# Run the container with cometbft by default. (UID=100, GID=1000)
+USER cometbft
 
 WORKDIR $CMTHOME
 
