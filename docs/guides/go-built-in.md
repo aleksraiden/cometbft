@@ -588,7 +588,7 @@ func main() {
         nm.DefaultGenesisDocProviderFunc(config),
         nm.DefaultDBProvider,
         nm.DefaultMetricsProvider(config.Instrumentation),
-        logger
+        logger,
     )
 
     if err != nil {
