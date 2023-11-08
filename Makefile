@@ -159,7 +159,8 @@ proto-check-breaking-ci:
 ###############################################################################
 
 build_abci:
-	@go build -mod=readonly -i ./abci/cmd/...
+	CGO_ENABLED=$(CGO_ENABLED) @go build $(BUILD_FLAGS) -o $(OUTPUT) ./abci/cmd/...
+#	@go build -mod=readonly -i ./abci/cmd/...
 .PHONY: build_abci
 
 install_abci:
