@@ -467,12 +467,11 @@ In the following code, the application simply returns the unmodified group of tr
 
    for _, tx := range proposal.Txs {
      totalBytes += int64(len(tx))
-     txs = append(txs, tx...)
-
        if totalBytes > int64(proposal.MaxTxBytes) {
          break
        }
-     }
+     txs = append(txs, tx...)
+   }
 
      return &abcitypes.ResponsePrepareProposal{Txs: proposal.Txs}, nil
  }
