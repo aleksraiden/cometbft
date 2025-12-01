@@ -9,7 +9,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 FROM --platform=$BUILDPLATFORM $GOLANG_BASE_IMAGE AS builder
 RUN apk update && \
     apk upgrade && \
-    apk --no-cache add make git
+    apk --no-cache add make git ca-certificates tzdata
 COPY / /cometbft
 WORKDIR /cometbft
 
@@ -33,7 +33,7 @@ ENV CMTHOME=/cometbft
 # could execute bash commands.
 RUN apk update && \
     apk upgrade && \
-    apk --no-cache add curl jq bash && \
+    apk --no-cache add curl jq bash ca-certificates tzdata && \
     addgroup tmuser && \
     adduser -S -G tmuser tmuser -h "$CMTHOME"
 
