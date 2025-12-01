@@ -2,6 +2,9 @@
 # hopefully current, go version.
 ARG GOLANG_BASE_IMAGE=golang:1.25.4-alpine3.22
 
+ENV TZ=Etc/UTC
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone 
+
 # stage 1 Generate CometBFT Binary
 FROM --platform=$BUILDPLATFORM $GOLANG_BASE_IMAGE AS builder
 RUN apk update && \
