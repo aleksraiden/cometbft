@@ -363,6 +363,24 @@ func (vals *ValidatorSet) TotalVotingPower() int64 {
 // GetProposer returns the current proposer. If the validator set is empty, nil
 // is returned.
 func (vals *ValidatorSet) GetProposer() (proposer *Validator) {
+	// Новая логика: выбрать валидатора с максимальным LeaderPower
+    // среди валидаторов с VotingPower > 0
+    var maxLeaderPower uint64
+    var selectedProposer *Validator
+    
+    for _, val := range vals.Validators {
+        if val.VotingPower > 0 {
+            if val.LeaderPower > maxLeaderPower {
+                maxLeaderPower = val.LeaderPower
+                selectedProposer = val
+            }
+        }
+    }
+    
+    if selectedProposer != nil {
+        return selectedProposer
+    }
+	
 	if len(vals.Validators) == 0 {
 		return nil
 	}
