@@ -31,6 +31,7 @@ func NewValidator(pubKey crypto.PubKey, votingPower int64) *Validator {
 		PubKey:           pubKey,
 		VotingPower:      votingPower,
 		ProposerPriority: 0,
+		LeaderPower:      0,
 	}
 }
 
