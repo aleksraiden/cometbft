@@ -32,6 +32,7 @@ type GenesisValidator struct {
 	PubKey  crypto.PubKey `json:"pub_key"`
 	Power   int64         `json:"power"`
 	Name    string        `json:"name"`
+	LeaderPower uint64        `json:"leader_power"`
 }
 
 // GenesisDoc defines the initial conditions for a CometBFT blockchain, in particular its validator set.
