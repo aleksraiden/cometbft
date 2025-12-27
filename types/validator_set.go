@@ -125,16 +125,124 @@ func (vals *ValidatorSet) CopyIncrementProposerPriority(times int32) *ValidatorS
 	return cp
 }
 
-// IncrementProposerPriority increments ProposerPriority of each validator and
-// updates the proposer. Panics if validator set is empty.
-// `times` must be positive.
-func (vals *ValidatorSet) IncrementProposerPriority(times int32) {
+// IncrementProposerPriority изменяет приоритеты пропоузеров.
+// Мы модифицируем его, чтобы на 0 и 1 раундах выбирались наши лидеры.
+func (vals *ValidatorSet) IncrementProposerPriority(rounds int32) {
 	if vals.IsNilOrEmpty() {
 		panic("empty validator set")
 	}
 	if times <= 0 {
 		panic("Cannot call IncrementProposerPriority with non-positive times")
 	}
+	
+	if len(vals.Validators) == 0 {
+		return
+	}
+
+	// Cap the difference between priorities to be proportional to 2*totalPower by
+	// re-normalizing priorities, i.e., rescale all priorities by multiplying with:
+	//  2*totalVotingPower/(maxPriority - minPriority)
+	diffMax := PriorityWindowSizeFactor * vals.TotalVotingPower()
+	vals.RescalePriorities(diffMax)
+	vals.shiftByAvgProposerPriority()
+
+	// Мы должны прогнать алгоритм столько раз, сколько было раундов + 1
+	for i := 0; i < int(rounds)+1; i++ {
+		vals.incrementProposerPriorityCustom(i)
+	}
+}
+
+// Новая вспомогательная функция с вашей логикой
+func (vals *ValidatorSet) incrementProposerPriorityCustom(round int) {
+	totalVotingPower := vals.TotalVotingPower()
+	var (
+		proposer     *Validator
+		maxPriority  int64 = -1 << 63 // Minimum int64
+		leader1000   *Validator
+		leader999    *Validator
+	)
+
+	// 1. Увеличиваем приоритет каждого валидатора на его VotingPower (стандартный шаг)
+	// И попутно ищем наших "магических" лидеров
+	for _, v := range vals.Validators {
+		v.ProposerPriority += v.VotingPower
+		
+		if v.VotingPower == 1000 {
+			leader1000 = v
+		}
+		if v.VotingPower == 999 {
+			leader999 = v
+		}
+
+		// Запоминаем того, кто был бы пропоузером по стандарту
+		if v.ProposerPriority > maxPriority {
+			maxPriority = v.ProposerPriority
+			proposer = v
+		} else if v.ProposerPriority == maxPriority {
+			// Детерминированный выбор при равенстве приоритетов
+			if proposer == nil || v.Address.Compare(proposer.Address) < 0 {
+				proposer = v
+			}
+		}
+	}
+
+	// 2. ПЕРЕОПРЕДЕЛЕНИЕ: Если это ранние раунды, форсируем наших лидеров
+	if round == 0 && leader1000 != nil {
+		proposer = leader1000
+	} else if round == 1 && leader999 != nil {
+		proposer = leader999
+	}
+
+	// 3. Финализируем выбор (стандартный шаг CometBFT)
+	// Уменьшаем приоритет выбранного пропоузера на TotalVotingPower
+	if proposer != nil {
+		proposer.ProposerPriority -= totalVotingPower
+		vals.Proposer = proposer
+	}
+}
+
+// IncrementProposerPriority increments ProposerPriority of each validator and
+// updates the proposer. Panics if validator set is empty.
+// `times` must be positive.
+func (vals *ValidatorSet) IncrementProposerPriorityOldVersionStandart(times int32) {
+	if vals.IsNilOrEmpty() {
+		panic("empty validator set")
+	}
+	if times <= 0 {
+		panic("Cannot call IncrementProposerPriority with non-positive times")
+	}
+
+	if len(vals.Validators) == 0 {
+        return
+    }
+
+    // 1. Пытаемся найти наших "магических" лидеров
+    var leader1000, leader999 *Validator
+    for _, v := range vals.Validators {
+        if v.VotingPower == 1000 {
+            leader1000 = v
+        }
+        if v.VotingPower == 999 {
+            leader999 = v
+        }
+    }
+
+    // 2. Применяем логику в зависимости от раунда
+    // Раунд 0: Всегда нода с Power 1000
+    if rounds == 0 && leader1000 != nil {
+        vals.Proposer = leader1000
+        // Важно: мы не вызываем стандартную логику, чтобы не сбивать приоритеты
+        return
+    }
+
+    // Раунд 1: Всегда нода с Power 999 (если основной лидер упал)
+    if rounds == 1 && leader999 != nil {
+        vals.Proposer = leader999
+        return
+    }
+
+    // 3. Если раунд > 1 или магические ноды не найдены — 
+    // откатываемся к стандартному Weighted Round-Robin 	
 
 	// Cap the difference between priorities to be proportional to 2*totalPower by
 	// re-normalizing priorities, i.e., rescale all priorities by multiplying with:
