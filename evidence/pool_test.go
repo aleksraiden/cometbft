@@ -366,7 +366,7 @@ func initializeStateFromValidatorSet(valSet *types.ValidatorSet, height int64) s
 		LastBlockHeight:             height,
 		LastBlockTime:               defaultEvidenceTime,
 		Validators:                  valSet,
-		NextValidators:              valSet.CopyIncrementProposerPriority(1),
+		NextValidators:              valSet.CopyIncrementProposerPriority(1, 0),
 		LastValidators:              valSet,
 		LastHeightValidatorsChanged: 1,
 		ConsensusParams: types.ConsensusParams{
