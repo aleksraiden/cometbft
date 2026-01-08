@@ -328,7 +328,7 @@ func MakeGenesisState(genDoc *types.GenesisDoc) (State, error) {
 			validators[i] = types.NewValidator(val.PubKey, val.Power)
 		}
 		validatorSet = types.NewValidatorSet(validators)
-		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1, 0)
+		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1, -1)
 	}
 
 	return State{

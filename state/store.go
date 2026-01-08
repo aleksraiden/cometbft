@@ -569,7 +569,7 @@ func (store dbStore) LoadValidators(height int64) (*types.ValidatorSet, error) {
 			return nil, err
 		}
 
-		vs.IncrementProposerPriority(cmtmath.SafeConvertInt32(height - lastStoredHeight), 0) // mutate
+		vs.IncrementProposerPriority(cmtmath.SafeConvertInt32(height - lastStoredHeight), -1) // mutate
 		vi2, err := vs.ToProto()
 		if err != nil {
 			return nil, err

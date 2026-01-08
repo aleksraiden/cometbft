@@ -929,7 +929,7 @@ func TestStoreLoadValidatorsIncrementsProposerPriority(t *testing.T) {
 		DiscardABCIResponses: false,
 	})
 	state.Validators = genValSet(valSetSize)
-	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1, 0)
+	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1, -1)
 	err := stateStore.Save(state)
 	require.NoError(t, err)
 
@@ -957,7 +957,7 @@ func TestManyValidatorChangesSaveLoad(t *testing.T) {
 	})
 	require.Equal(t, int64(0), state.LastBlockHeight)
 	state.Validators = genValSet(valSetSize)
-	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1, 0)
+	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1, -1)
 	err := stateStore.Save(state)
 	require.NoError(t, err)
 

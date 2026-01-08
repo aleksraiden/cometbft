@@ -86,7 +86,7 @@ func NewValidatorSet(valz []*Validator) *ValidatorSet {
 		panic(fmt.Sprintf("Cannot create validator set: %v", err))
 	}
 	if len(valz) > 0 {
-		vals.IncrementProposerPriority(1, 0)
+		vals.IncrementProposerPriority(1, -1)
 	}
 	return vals
 }
@@ -174,6 +174,8 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 		leaderMain   *Validator // power=1000
 		leaderBackup *Validator // power=990
 		
+		leaderByPower *Validator //выберем бекап лидера если наши магические офф 
+		
 		changeToBackupAtRound int32	= 3	//На каком раунде мы меняем лидера 
 	)
 
@@ -188,10 +190,21 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 		if v.VotingPower == 990 {
 			leaderBackup = v
 		}
+		
+		if leaderByPower == nil || leaderByPower.VotingPower < v.VotingPower {
+			leaderByPower = v
+		}		
 	}
 	
 	if leaderMain == nil && leaderBackup == nil {
-		panic("Cannot obtain proposer")
+		
+		if leaderByPower == nil {		
+			panic("Cannot obtain proposer")
+		} else {
+			vals.Proposer = leaderByPower
+			
+			return
+		}
 	}
 	
 	if latestValidator < 1 || latestValidator > 2 {
@@ -202,8 +215,18 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 		latestValidator = 2
 	}
 	
-	
-	
+	//If round are -1 - we cant obtain current round, so use default (current) proposer always 
+	if round == -1 {
+		
+		if latestValidator == 1 && leaderMain != nil {
+			vals.Proposer = leaderMain
+		} else if latestValidator == 2 && leaderBackup != nil {
+			vals.Proposer = leaderBackup
+		}
+		
+		return 
+	}
+		
 	//Пока всегда лидер
 	if latestValidator == 1 && round <= changeToBackupAtRound {
 		vals.Proposer = leaderMain
@@ -228,7 +251,14 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 	}
 	
 	if vals.Proposer == nil {
-		panic("No leader are selected")
+		
+		if leaderByPower == nil {		
+			panic("No leader are selected")
+		} else {
+			vals.Proposer = leaderByPower
+			
+			return
+		}
 	}
 }
 

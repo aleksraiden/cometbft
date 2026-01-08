@@ -33,11 +33,11 @@ var (
 	h1       = keys.GenSignedHeader(chainID, 1, bTime, nil, vals, vals,
 		hash("app_hash"), hash("cons_hash"), hash("results_hash"), 0, len(keys))
 	// 3/3 signed.
-	vals2 = vals.CopyIncrementProposerPriority(1, 0)
+	vals2 = vals.CopyIncrementProposerPriority(1, -1)
 	h2    = keys.GenSignedHeaderLastBlockID(chainID, 2, bTime.Add(30*time.Minute), nil, vals2, vals2,
 		hash("app_hash"), hash("cons_hash"), hash("results_hash"), 0, len(keys), types.BlockID{Hash: h1.Hash()})
 	// 3/3 signed.
-	vals3 = vals2.CopyIncrementProposerPriority(1, 0)
+	vals3 = vals2.CopyIncrementProposerPriority(1, -1)
 	h3    = keys.GenSignedHeaderLastBlockID(chainID, 3, bTime.Add(1*time.Hour), nil, vals3, vals3,
 		hash("app_hash"), hash("cons_hash"), hash("results_hash"), 0, len(keys), types.BlockID{Hash: h2.Hash()})
 	trustPeriod  = 4 * time.Hour
@@ -50,7 +50,7 @@ var (
 		1: vals,
 		2: vals2,
 		3: vals3,
-		4: vals.CopyIncrementProposerPriority(1, 0),
+		4: vals.CopyIncrementProposerPriority(1, -1),
 	}
 	headerSet = map[int64]*types.SignedHeader{
 		1: h1,
