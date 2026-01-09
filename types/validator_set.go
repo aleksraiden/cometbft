@@ -181,7 +181,7 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 
 	// 1. Увеличиваем приоритет всех валидаторов и находим лидеров
 	for _, v := range vals.Validators {
-		v.ProposerPriority += v.VotingPower
+		//v.ProposerPriority += v.VotingPower //отключим, чтобы работал фаллбек 
 		
 		// Идентифицируем лидеров по VotingPower
 		if v.VotingPower == 1000 {
@@ -197,7 +197,11 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 	}
 	
 	if leaderMain == nil && leaderBackup == nil {
+		//fallback to default if no magic-numbered proposers 
+		vals.IncrementProposerPriorityOriginal( times ) 	
 		
+		return
+		/*
 		if leaderByPower == nil {		
 			panic("Cannot obtain proposer")
 		} else {
@@ -205,7 +209,9 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 			
 			return
 		}
+		*/
 	}
+		
 	
 	if latestValidator < 1 || latestValidator > 2 {
 		latestValidator = 1
