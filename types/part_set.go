@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"bufio"
 
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/libs/bits"
@@ -13,6 +14,8 @@ import (
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	cmtsync "github.com/cometbft/cometbft/libs/sync"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	
+	"github.com/klauspost/compress/zstd"
 )
 
 var (
@@ -21,6 +24,12 @@ var (
 	ErrPartTooBig             = errors.New("error part size too big")
 	ErrPartInvalidSize        = errors.New("error inner part with invalid size")
 )
+
+// Магические байты начала Zstd фрейма
+var zstdMagic = []byte{0x28, 0xB5, 0x2F, 0xFD}
+
+// Глобальный энкодер для переиспользования (чтобы не аллоцировать память каждый раз)
+var zstdEnc, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedDefault))
 
 // ErrInvalidPart is an error type for invalid parts.
 type ErrInvalidPart struct {
@@ -192,14 +201,34 @@ type PartSet struct {
 // The data bytes are split into "partSize" chunks, and merkle tree computed.
 // CONTRACT: partSize is greater than zero.
 func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
+	// --- ИЗМЕНЕНИЕ: Сжимаем ВЕСЬ блок целиком ДО нарезки ---
+    // Это создает один большой сжатый blob.
+//xxx  compressedBz := zstdEnc.EncodeAll(data, make([]byte, 0, len(data)/2))
+    
+    // Подменяем данные на сжатые. Теперь для PartSet это просто "какие-то байты".
+//xxx    data = compressedBz
+
+
+
 	// divide data into parts of size `partSize`
 	total := (uint32(len(data)) + partSize - 1) / partSize
 	parts := make([]*Part, total)
 	partsBytes := make([][]byte, total)
+	
 	for i := uint32(0); i < total; i++ {
+/**
+// Берем кусок исходных данных
+start := int(i * partSize)
+end := cmtmath.MinInt(len(data), int((i+1)*partSize))
+chunk := data[start:end]
+
+// Каждый Part будет отдельным Zstd-фреймом.
+compressedChunk := zstdEnc.EncodeAll(chunk, make([]byte, 0, len(chunk)/2))
+**/
 		part := &Part{
 			Index: i,
 			Bytes: data[i*partSize : cmtmath.MinInt(len(data), int((i+1)*partSize))],
+//compressedChunk,	// data[i*partSize : cmtmath.MinInt(len(data), int((i+1)*partSize))],
 		}
 		parts[i] = part
 		partsBytes[i] = part.Bytes
@@ -343,7 +372,34 @@ func (ps *PartSet) GetReader() io.Reader {
 	if !ps.IsComplete() {
 		panic("Cannot GetReader() on incomplete PartSet")
 	}
-	return NewPartSetReader(ps.parts)
+	
+	// 1. Создаем читалку сырых частей (это поток склеенных zstd-фреймов)
+	pr := NewPartSetReader(ps.parts)
+	
+	// 2. Оборачиваем в bufio, чтобы можно было подглядеть (Peek) начало данных
+    bufPr := bufio.NewReader(pr)
+    
+    // 3. Подглядываем первые 4 байта
+    peek, _ := bufPr.Peek(4)
+    
+    // 4. Проверяем: это Zstd?
+    if bytes.Equal(peek, zstdMagic) {
+        // Да, это сжатые данные -> включаем декомпрессию
+        dec, err := zstd.NewReader(bufPr)
+        if err == nil {
+		
+			fmt.Sprintf("FUCKKKKKKKKKKKKKKKKKKKKKKKKKKK!, part are stored as zstd!")
+		
+            return dec
+        }
+        // Если ошибка создания ридера (маловероятно), возвращаем сырой поток
+    }
+
+    // 5. Если не Zstd (или ошибка) -> возвращаем поток как есть.
+    // Это спасет тесты, которые генерируют несжатые блоки вручную.
+	return pr //bufPr
+	
+	//return NewPartSetReader(ps.parts)
 }
 
 type PartSetReader struct {

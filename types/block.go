@@ -20,6 +20,8 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmtversion "github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cometbft/cometbft/version"
+	
+	//"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -38,6 +40,9 @@ const (
 	// Data.Txs field:                      1 byte
 	MaxOverheadForBlock int64 = 11
 )
+
+// Глобальный декодер
+//var zstdDec, _ = zstd.NewReader(nil)
 
 // Block defines the atomic unit of a CometBFT blockchain.
 type Block struct {
