@@ -158,15 +158,11 @@ func (vals *ValidatorSet) IncrementProposerPriorityOriginal(times int32) {
 //v2 - only leader and backup proposers are used, determine by magic voting number
 func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
     if vals.IsNilOrEmpty() {
-        return
+        panic("empty validator set")
     }
 	
 	if times <= 0 {
 		panic("Cannot call IncrementProposerPriority with non-positive times")
-	}
-	
-	if len(vals.Validators) == 0 {
-		return
 	}
 	
 	//наши валидаторы 
@@ -196,7 +192,8 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 		}		
 	}
 	
-	if leaderMain == nil && leaderBackup == nil {
+	//Need ONLY two leader with magic (for compatability with tests
+	if leaderMain == nil || leaderBackup == nil {
 		//fallback to default if no magic-numbered proposers 
 		vals.IncrementProposerPriorityOriginal( times ) 	
 		
