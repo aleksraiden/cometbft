@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package tendermint.rpc.grpc;
+
+option go_package = "github.com/cometbft/cometbft/rpc/grpc;coregrpc";
+
+service TxStreamService {
+  // bidi-stream: клиент шлёт поток tx, сервер шлёт поток ответов
+  rpc BroadcastStream (stream TxStreamRequest)
+      returns (stream TxStreamResponse);
+}
+
+message TxStreamRequest {
+  bytes tx = 1;          // raw tx bytes, как в broadcast_tx_*
+  string mode = 2;       // "async" | "sync" | "commit"
+  string request_id = 3; // опционально, для клиента
+}
+
+message TxStreamResponse {
+  string request_id = 1;
+  string mode = 2;
+  uint32 code = 3;
+  string log = 4;
+  bytes data = 5;
+  string tx_hash = 6;
+}
