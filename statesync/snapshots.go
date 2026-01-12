@@ -1,7 +1,7 @@
 package statesync
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/zeebo/blake3"
 	"fmt"
 	"math/rand"
 	"sort"

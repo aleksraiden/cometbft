@@ -1,13 +1,13 @@
 package tmhash
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/zeebo/blake3"
 	"hash"
 )
 
 const (
-	Size      = sha256.Size
-	BlockSize = sha256.BlockSize
+	Size      = 32	//sha256.Size
+	BlockSize = 64	//sha256.BlockSize
 )
 
 // New returns a new hash.Hash.

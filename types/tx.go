@@ -1,8 +1,8 @@
 package types
 
 import (
+	sha256 "github.com/zeebo/blake3"
 	"bytes"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 

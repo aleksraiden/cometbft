@@ -49,7 +49,10 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
-require github.com/golang/protobuf v1.5.4
+require (
+	github.com/golang/protobuf v1.5.4
+	github.com/zeebo/blake3 v0.2.4
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect

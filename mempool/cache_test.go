@@ -2,7 +2,7 @@ package mempool
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
+	sha256 "github.com/zeebo/blake3"
 	"fmt"
 	"testing"
 

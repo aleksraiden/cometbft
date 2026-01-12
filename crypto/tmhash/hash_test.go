@@ -1,7 +1,7 @@
 package tmhash_test
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/zeebo/blake3"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"crypto/sha256"
+	sha256 "github.com/zeebo/blake3"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
