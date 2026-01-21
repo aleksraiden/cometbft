@@ -881,8 +881,12 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 		},
 		{
 			func(msg *NewValidBlockMessage) { msg.BlockParts = bits.NewBitArray(int(types.MaxBlockPartsCount) + 1) },
-			"blockParts bit array size 1602 not equal to BlockPartSetHeader.Total 1",
+			"blockParts bit array size 106 not equal to BlockPartSetHeader.Total 1",
 		},
+// for Old 64kb block {
+//			func(msg *NewValidBlockMessage) { msg.BlockParts = bits.NewBitArray(int(types.MaxBlockPartsCount) + 1) },
+//			"blockParts bit array size 1602 not equal to BlockPartSetHeader.Total 1",
+//		},
 		{
 			func(msg *NewValidBlockMessage) { msg.BlockParts.Elems = nil },
 			"wrong BlockParts",

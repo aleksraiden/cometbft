@@ -904,7 +904,7 @@ func makeBlocks(n int, state sm.State, privVals []types.PrivValidator) ([]*types
 		state.LastBlockTime = state.LastBlockTime.Add(1 * time.Second)
 		state.LastValidators = state.Validators.Copy()
 		state.Validators = state.NextValidators.Copy()
-		state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1)
+		state.NextValidators = state.NextValidators.CopyIncrementProposerPriority(1, -1)
 		state.AppHash = test.RandomHash()
 
 		blockID = test.MakeBlockIDWithHash(block.Hash())
