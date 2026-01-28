@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	testPartSize = 65536 // 64KB ...  4096 // 4KB
+	testPartSize = 1000000 //original: 65536 // 64KB ...  4096 // 4KB
 )
 
 func TestBasicPartSet(t *testing.T) {

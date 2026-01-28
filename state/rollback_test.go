@@ -41,7 +41,7 @@ func TestRollback(t *testing.T) {
 	nextState.AppHash = tmhash.Sum([]byte("app_hash"))
 	nextState.LastValidators = initialState.Validators
 	nextState.Validators = initialState.NextValidators
-	nextState.NextValidators = initialState.NextValidators.CopyIncrementProposerPriority(1)
+	nextState.NextValidators = initialState.NextValidators.CopyIncrementProposerPriority(1, -1)
 	nextState.ConsensusParams = *newParams
 	nextState.LastHeightConsensusParamsChanged = nextHeight + 1
 	nextState.LastHeightValidatorsChanged = nextHeight + 1
@@ -108,7 +108,7 @@ func TestRollbackHard(t *testing.T) {
 			LastCommitHash:     crypto.CRandBytes(tmhash.Size),
 			DataHash:           crypto.CRandBytes(tmhash.Size),
 			ValidatorsHash:     valSet.Hash(),
-			NextValidatorsHash: valSet.CopyIncrementProposerPriority(1).Hash(),
+			NextValidatorsHash: valSet.CopyIncrementProposerPriority(1, -1).Hash(),
 			ConsensusHash:      params.Hash(),
 			LastResultsHash:    crypto.CRandBytes(tmhash.Size),
 			EvidenceHash:       crypto.CRandBytes(tmhash.Size),
@@ -130,8 +130,8 @@ func TestRollbackHard(t *testing.T) {
 		LastBlockTime:                    block.Time,
 		AppHash:                          crypto.CRandBytes(tmhash.Size),
 		LastValidators:                   valSet,
-		Validators:                       valSet.CopyIncrementProposerPriority(1),
-		NextValidators:                   valSet.CopyIncrementProposerPriority(2),
+		Validators:                       valSet.CopyIncrementProposerPriority(1, -1),
+		NextValidators:                   valSet.CopyIncrementProposerPriority(2, -1),
 		ConsensusParams:                  *params,
 		LastHeightConsensusParamsChanged: height + 1,
 		LastHeightValidatorsChanged:      height + 1,
@@ -149,8 +149,8 @@ func TestRollbackHard(t *testing.T) {
 			LastBlockID:        types.BlockID{Hash: block.Hash(), PartSetHeader: partSet.Header()},
 			LastCommitHash:     crypto.CRandBytes(tmhash.Size),
 			DataHash:           crypto.CRandBytes(tmhash.Size),
-			ValidatorsHash:     valSet.CopyIncrementProposerPriority(1).Hash(),
-			NextValidatorsHash: valSet.CopyIncrementProposerPriority(2).Hash(),
+			ValidatorsHash:     valSet.CopyIncrementProposerPriority(1, -1).Hash(),
+			NextValidatorsHash: valSet.CopyIncrementProposerPriority(2, -1).Hash(),
 			ConsensusHash:      params.Hash(),
 			LastResultsHash:    currState.LastResultsHash,
 			EvidenceHash:       crypto.CRandBytes(tmhash.Size),
@@ -186,9 +186,9 @@ func TestRollbackHard(t *testing.T) {
 		LastBlockHeight:                  nextBlock.Height,
 		LastBlockTime:                    nextBlock.Time,
 		AppHash:                          crypto.CRandBytes(tmhash.Size),
-		LastValidators:                   valSet.CopyIncrementProposerPriority(1),
-		Validators:                       valSet.CopyIncrementProposerPriority(2),
-		NextValidators:                   valSet.CopyIncrementProposerPriority(3),
+		LastValidators:                   valSet.CopyIncrementProposerPriority(1, -1),
+		Validators:                       valSet.CopyIncrementProposerPriority(2, -1),
+		NextValidators:                   valSet.CopyIncrementProposerPriority(3, -1),
 		ConsensusParams:                  *params,
 		LastHeightConsensusParamsChanged: nextBlock.Height + 1,
 		LastHeightValidatorsChanged:      nextBlock.Height + 1,
@@ -261,8 +261,8 @@ func setupStateStore(t *testing.T, height int64) state.Store {
 		LastBlockHeight:                  height,
 		LastBlockTime:                    time.Now(),
 		LastValidators:                   valSet,
-		Validators:                       valSet.CopyIncrementProposerPriority(1),
-		NextValidators:                   valSet.CopyIncrementProposerPriority(2),
+		Validators:                       valSet.CopyIncrementProposerPriority(1, -1),
+		NextValidators:                   valSet.CopyIncrementProposerPriority(2, -1),
 		LastHeightValidatorsChanged:      height + 1 + 1,
 		ConsensusParams:                  *params,
 		LastHeightConsensusParamsChanged: height + 1,

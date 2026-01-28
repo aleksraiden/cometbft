@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gofrs/uuid"
+	"github.com/gofrs/uuid/v5"
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/cometbft/cometbft/test/loadtime/payload"

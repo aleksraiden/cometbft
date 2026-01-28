@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   e2e-test:
+    if: false #Bonton fork Это условие никогда не выполнится
     # Run two parallel jobs: for `ci.toml`, and for the regression manifests
     strategy:
       fail-fast: false

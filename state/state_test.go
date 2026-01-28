@@ -427,7 +427,7 @@ func testProposerFreq(t *testing.T, caseNum int, valSet *types.ValidatorSet) {
 		prop := valSet.GetProposer()
 		idx, _ := valSet.GetByAddress(prop.Address)
 		freqs[idx]++
-		valSet.IncrementProposerPriority(1)
+		valSet.IncrementProposerPriority(1, 0)
 	}
 
 	// assert frequencies match expected (max off by 1)
@@ -939,7 +939,7 @@ func TestStoreLoadValidatorsIncrementsProposerPriority(t *testing.T) {
 		DiscardABCIResponses: false,
 	})
 	state.Validators = genValSet(valSetSize)
-	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1)
+	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1, -1)
 	err := stateStore.Save(state)
 	require.NoError(t, err)
 
@@ -967,7 +967,7 @@ func TestManyValidatorChangesSaveLoad(t *testing.T) {
 	})
 	require.Equal(t, int64(0), state.LastBlockHeight)
 	state.Validators = genValSet(valSetSize)
-	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1)
+	state.NextValidators = state.Validators.CopyIncrementProposerPriority(1, -1)
 	err := stateStore.Save(state)
 	require.NoError(t, err)
 
