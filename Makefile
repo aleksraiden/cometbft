@@ -80,7 +80,7 @@ include tests.mk
 
 #? build: Build CometBFT
 build:
-	CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_FLAGS) -tags '$(BUILD_TAGS)' -o $(OUTPUT) ./cmd/cometbft/
+	CGO_ENABLED=$(CGO_ENABLED) GOAMD64=v3 go build $(BUILD_FLAGS) -tags '$(BUILD_TAGS)' -o $(OUTPUT) ./cmd/cometbft/
 .PHONY: build
 
 #? install: Install CometBFT to GOBIN
