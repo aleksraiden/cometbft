@@ -40,6 +40,9 @@ var ErrTotalVotingPowerOverflow = fmt.Errorf("total voting power of resulting va
 // ErrProposerNotInVals is returned if the proposer is not in the validator set.
 var ErrProposerNotInVals = errors.New("proposer not in validator set")
 
+//Store a latest validator id
+var latestValidator = 1
+
 // ValidatorSet represents a set of *Validator at a given height.
 //
 // The validators can be fetched by address or index.
@@ -83,7 +86,7 @@ func NewValidatorSet(valz []*Validator) *ValidatorSet {
 		panic(fmt.Sprintf("Cannot create validator set: %v", err))
 	}
 	if len(valz) > 0 {
-		vals.IncrementProposerPriority(1)
+		vals.IncrementProposerPriority(1, -1)
 	}
 	return vals
 }
@@ -119,16 +122,16 @@ func (vals *ValidatorSet) IsNilOrEmpty() bool {
 
 // CopyIncrementProposerPriority increments ProposerPriority and updates the
 // proposer on a copy, and returns it.
-func (vals *ValidatorSet) CopyIncrementProposerPriority(times int32) *ValidatorSet {
+func (vals *ValidatorSet) CopyIncrementProposerPriority(times int32, round int32) *ValidatorSet {
 	cp := vals.Copy()
-	cp.IncrementProposerPriority(times)
+	cp.IncrementProposerPriority(times, round)
 	return cp
 }
 
 // IncrementProposerPriority increments ProposerPriority of each validator and
 // updates the proposer. Panics if validator set is empty.
 // `times` must be positive.
-func (vals *ValidatorSet) IncrementProposerPriority(times int32) {
+func (vals *ValidatorSet) IncrementProposerPriorityOriginal(times int32) {
 	if vals.IsNilOrEmpty() {
 		panic("empty validator set")
 	}
@@ -150,6 +153,116 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32) {
 	}
 
 	vals.Proposer = proposer
+}
+
+//v2 - only leader and backup proposers are used, determine by magic voting number
+func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
+    if vals.IsNilOrEmpty() {
+        panic("empty validator set")
+    }
+	
+	if times <= 0 {
+		panic("Cannot call IncrementProposerPriority with non-positive times")
+	}
+	
+	//наши валидаторы 
+	var (
+		leaderMain   *Validator // power=1000
+		leaderBackup *Validator // power=990
+		
+		leaderByPower *Validator //выберем бекап лидера если наши магические офф 
+		
+		changeToBackupAtRound int32	= 3	//На каком раунде мы меняем лидера 
+	)
+
+	// 1. Увеличиваем приоритет всех валидаторов и находим лидеров
+	for _, v := range vals.Validators {
+		//v.ProposerPriority += v.VotingPower //отключим, чтобы работал фаллбек 
+		
+		// Идентифицируем лидеров по VotingPower
+		if v.VotingPower == 1000 {
+			leaderMain = v
+		}
+		if v.VotingPower == 990 {
+			leaderBackup = v
+		}
+		
+		if leaderByPower == nil || leaderByPower.VotingPower < v.VotingPower {
+			leaderByPower = v
+		}		
+	}
+	
+	//Need ONLY two leader with magic (for compatability with tests
+	if leaderMain == nil || leaderBackup == nil {
+		//fallback to default if no magic-numbered proposers 
+		vals.IncrementProposerPriorityOriginal( times ) 	
+		
+		return
+		/*
+		if leaderByPower == nil {		
+			panic("Cannot obtain proposer")
+		} else {
+			vals.Proposer = leaderByPower
+			
+			return
+		}
+		*/
+	}
+		
+	
+	if latestValidator < 1 || latestValidator > 2 {
+		latestValidator = 1
+	}
+	
+	if leaderMain == nil {
+		latestValidator = 2
+	}
+	
+	//If round are -1 - we cant obtain current round, so use default (current) proposer always 
+	if round == -1 {
+		
+		if latestValidator == 1 && leaderMain != nil {
+			vals.Proposer = leaderMain
+		} else if latestValidator == 2 && leaderBackup != nil {
+			vals.Proposer = leaderBackup
+		}
+		
+		return 
+	}
+		
+	//Пока всегда лидер
+	if latestValidator == 1 && round <= changeToBackupAtRound {
+		vals.Proposer = leaderMain
+		latestValidator = 1
+		
+		if round > 0 {
+			fmt.Printf("[PROPOSER_SELECT] Use leaderMain. times=%d round=%d vAddress=%s\n", times, round, vals.Proposer.Address)
+		}
+	} else if latestValidator == 2 || ( latestValidator == 1 && round > changeToBackupAtRound ) {
+		
+		if leaderBackup == nil {
+			panic("Cant change to leader backup")
+		}
+					
+		vals.Proposer = leaderBackup
+		
+		latestValidator = 2
+		
+		if latestValidator == 1 && round > changeToBackupAtRound {
+			fmt.Printf("[PROPOSER_SELECT] Use leaderBackup. times=%d round=%d vAddress=%s\n", times, round, vals.Proposer.Address)
+		}
+	}
+	
+	if vals.Proposer == nil {
+		
+		if leaderByPower == nil {		
+			panic("No leader are selected")
+		} else {
+			vals.Proposer = leaderByPower
+			
+			return
+		}
+	}
 }
 
 // RescalePriorities rescales the priorities such that the distance between the

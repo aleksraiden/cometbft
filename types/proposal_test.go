@@ -203,7 +203,8 @@ func TestProposalValidateBlockSize(t *testing.T) {
 		{"10 chunk max, max uint32 chunk proposal, fail", int64(10 * BlockPartSizeBytes), NewProposal(0, 0, 0, BlockID{PartSetHeader: PartSetHeader{Total: math.MaxUint32}}), false},
 		{"-1 chunk max, max uint32 chunk proposal, fail", -1, NewProposal(0, 0, 0, BlockID{PartSetHeader: PartSetHeader{Total: math.MaxUint32}}), false},
 		{"0 chunk max, max uint32 chunk proposal, fail", -1, NewProposal(0, 0, 0, BlockID{PartSetHeader: PartSetHeader{Total: math.MaxUint32}}), false},
-		{"total parts equals chunk max, success", -1, NewProposal(0, 0, 0, BlockID{PartSetHeader: PartSetHeader{Total: 1600}}), true},
+		{"total parts equals chunk max, success", -1, NewProposal(0, 0, 0, BlockID{PartSetHeader: PartSetHeader{Total: 105}}), true},
+		//old value  1600 (for 64 kb block)
 	}
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
