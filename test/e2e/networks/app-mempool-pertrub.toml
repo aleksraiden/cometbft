@@ -1,18 +1,17 @@
 [node.validator01]
-use_libp2p = true
-persistent_peers = ["validator02", "validator04", "validator05"]
+mempool_type = "app"
 
 [node.validator02]
-use_libp2p = true
+mempool_type = "app"
 perturb = ["kill"]
 
 [node.validator03]
-use_libp2p = true
+mempool_type = "app"
 
 [node.validator04]
-use_libp2p = true
+mempool_type = "app"
 perturb = ["restart"]
 
 [node.validator05]
-use_libp2p = true
+mempool_type = "app"
 perturb = ["disconnect"]

@@ -14,6 +14,7 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/pkg/errors"
 )
@@ -105,21 +106,32 @@ func (s *Switch) OnStart() error {
 		return fmt.Errorf("failed to start reactors: %w", err)
 	}
 
-	// 2. connect bootstrap peers
+	// 2. register peer failure handler
+	s.host.AddPeerFailureHandler(func(id peer.ID, err error) {
+		key := peerIDToKey(id)
+		peer := s.peerSet.Get(key)
+		s.StopPeerForError(peer, err)
+	})
+
+	// 3. connect bootstrap peers
 	bootstrapPeers := s.host.BootstrapPeers()
 
+	s.Logger.Info("Connecting to bootstrap peers", "count", len(bootstrapPeers))
+
 	for _, bp := range bootstrapPeers {
-		err := s.connectPeer(ctx, bp.AddrInfo, PeerAddOptions{
+		opts := PeerAddOptions{
 			Private:       bp.Private,
 			Persistent:    bp.Persistent,
 			Unconditional: bp.Unconditional,
 			OnBeforeStart: s.reactors.InitPeer,
 			OnAfterStart:  s.reactors.AddPeer,
 			OnStartFailed: s.reactors.RemovePeer,
-		})
+		}
 
+		err := s.bootstrapPeer(ctx, bp.AddrInfo, opts)
 		if err != nil {
 			s.Logger.Error("Unable to add bootstrap peer", "peer_id", bp.AddrInfo.String(), "err", err)
+			go s.reconnectPeer(bp.AddrInfo, MaxReconnectBackoff, opts)
 			continue
 		}
 	}
@@ -235,20 +247,37 @@ func (s *Switch) StopPeerForError(peer p2p.Peer, reason any) {
 		return
 	}
 
-	key := p.ID()
+	pid := p.ID()
 
 	removalOpts := PeerRemovalOptions{
 		Reason:      reason,
 		OnAfterStop: s.reactors.RemovePeer,
 	}
 
-	if err := s.peerSet.Remove(key, removalOpts); err != nil {
-		s.Logger.Error("Failed to remove peer", "peer_id", key, "err", err)
+	if err := s.peerSet.Remove(pid, removalOpts); err != nil {
+		s.Logger.Error("Failed to remove peer", "peer_id", pid, "err", err)
 		return
 	}
 
+	// todo, actually, for persistent peers we can skip this step,
+	// but explicitly closing might cleanup some conns/resources
+	if err := s.host.Network().ClosePeer(p.addrInfo.ID); err != nil {
+		// tolerate this error.
+		s.Logger.Error("Failed to close peer", "peer_id", pid, "err", err)
+	}
+
 	// reconnect logic
-	if !p.IsPersistent() {
+	shouldReconnect := false
+
+	if p.IsPersistent() {
+		shouldReconnect = true
+		s.Logger.Debug("Will reconnect to peer", "peer_id", pid, "err", reason)
+	} else if errTransient, ok := TransientErrorFromAny(reason); ok {
+		shouldReconnect = true
+		s.Logger.Debug("Will reconnect to peer after transient error", "peer_id", pid, "err", errTransient.Err)
+	}
+
+	if !shouldReconnect {
 		return
 	}
 
@@ -452,6 +481,11 @@ func (s *Switch) resolvePeer(id peer.ID) (p2p.Peer, error) {
 		return peer, nil
 	}
 
+	addrInfo := s.host.Peerstore().PeerInfo(id)
+	if len(addrInfo.Addrs) == 0 {
+		return nil, errors.New("peer has no addresses in peerstore")
+	}
+
 	// let's try to provision it
 	opts := PeerAddOptions{
 		Private:       false,
@@ -462,7 +496,7 @@ func (s *Switch) resolvePeer(id peer.ID) (p2p.Peer, error) {
 		OnStartFailed: s.reactors.RemovePeer,
 	}
 
-	peer, err := s.peerSet.Add(id, opts)
+	peer, err := s.peerSet.Add(addrInfo, opts)
 	switch {
 	case errors.Is(err, ErrPeerExists):
 		// tolerate two concurrent peer additions
@@ -479,20 +513,47 @@ func (s *Switch) resolvePeer(id peer.ID) (p2p.Peer, error) {
 	}
 }
 
-// connectPeer connects a peer to the host. should be used only during switch start.
-func (s *Switch) connectPeer(ctx context.Context, addrInfo peer.AddrInfo, opts PeerAddOptions) error {
+// bootstrapPeer connects a bootstrap peer to the host. should be used ONLY during switch start.
+func (s *Switch) bootstrapPeer(ctx context.Context, addrInfo peer.AddrInfo, opts PeerAddOptions) error {
 	if addrInfo.ID == s.host.ID() {
 		s.Logger.Info("Ignoring connection to self")
 		return nil
 	}
 
+	pid := addrInfo.ID.String()
+
+	s.Logger.Info(
+		"Connecting to peer",
+		"peer_id", pid,
+		"addr_info", addrInfo.String(),
+		"persistent", opts.Persistent,
+		"unconditional", opts.Unconditional,
+		"private", opts.Private,
+	)
+
 	if err := s.host.Connect(ctx, addrInfo); err != nil {
 		return errors.Wrap(err, "unable to connect to peer")
 	}
 
-	if _, err := s.peerSet.Add(addrInfo.ID, opts); err != nil {
+	if _, err := s.peerSet.Add(addrInfo, opts); err != nil {
 		return errors.Wrap(err, "unable to add peer")
 	}
+
+	for _, addr := range addrInfo.Addrs {
+		// if this a DNS address, save it to the peerstore, so in case of IP address change,
+		// we can use the DNS address to reconnect during message sending.
+		if IsDNSAddr(addr) {
+			s.host.Peerstore().AddAddr(addrInfo.ID, addr, peerstore.PermanentAddrTTL)
+		}
+	}
+
+	// after connecting, there might be more than
+	// one address (eg `/dns/...` + resolved `/ipv4/...`)
+	addresses := s.host.multiAddrStrByID(addrInfo.ID)
+
+	s.Logger.Info("Connected to peer", "peer_id", pid, "addresses", addresses)
+
+	go s.pingPeer(addrInfo)
 
 	return nil
 }
@@ -506,8 +567,6 @@ func (s *Switch) reconnectPeer(addrInfo peer.AddrInfo, backoffMax time.Duration,
 		}
 	}()
 
-	ctx := network.WithDialPeerTimeout(context.Background(), 3*time.Second)
-
 	backoff := 1 * time.Second
 	sleep := func() {
 		jitter := time.Duration(rand.Intn(100)) * time.Millisecond
@@ -519,16 +578,30 @@ func (s *Switch) reconnectPeer(addrInfo peer.AddrInfo, backoffMax time.Duration,
 		}
 	}
 
+	var (
+		ctx   = network.WithDialPeerTimeout(context.Background(), 3*time.Second)
+		pid   = addrInfo.ID.String()
+		start = time.Now()
+	)
+
 	for {
 		if !s.isActive() {
 			return
 		}
 
+		s.Logger.Info(
+			"Reconnecting to peer",
+			"peer_id", pid,
+			"private", opts.Private,
+			"persistent", opts.Persistent,
+			"unconditional", opts.Unconditional,
+		)
+
 		// 1. ensure connection (dial or noop if already connected)
 		if err := s.host.Connect(ctx, addrInfo); err != nil {
 			s.Logger.Error(
 				"Failed to reconnect to peer",
-				"peer_id", addrInfo.ID.String(),
+				"peer_id", pid,
 				"err", err,
 				"backoff", backoff.String(),
 			)
@@ -538,20 +611,56 @@ func (s *Switch) reconnectPeer(addrInfo peer.AddrInfo, backoffMax time.Duration,
 		}
 
 		// 2. add peer to the peer set
-		_, err := s.peerSet.Add(addrInfo.ID, opts)
-		if err == nil || errors.Is(err, ErrPeerExists) {
-			s.Logger.Info("Reconnected to peer", "peer_id", addrInfo.ID.String())
-			return
+		_, err := s.peerSet.Add(addrInfo, opts)
+		if err != nil && !errors.Is(err, ErrPeerExists) {
+			s.Logger.Error(
+				"Failed to add peer after reconnection",
+				"peer_id", pid,
+				"err", err,
+				"backoff", backoff.String(),
+			)
+			sleep()
+			continue
 		}
 
-		s.Logger.Error(
-			"Failed to add peer after reconnection",
-			"peer_id", addrInfo.ID.String(),
-			"err", err,
-			"backoff", backoff.String(),
+		var (
+			elapsed   = time.Since(start)
+			addresses = s.host.multiAddrStrByID(addrInfo.ID)
 		)
-		sleep()
+
+		s.Logger.Info(
+			"Reconnected to peer",
+			"peer_id", pid,
+			"addresses", addresses,
+			"elapsed", elapsed.String(),
+		)
+
+		go s.pingPeer(addrInfo)
+
+		return
 	}
+}
+
+// pingPeer pings peers and logs RTT latency (blocking)
+// Keep in might that ping service might be disabled on the counterparty side.
+func (s *Switch) pingPeer(addrInfo peer.AddrInfo) {
+	const timeout = 5 * time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	var (
+		pid       = addrInfo.ID.String()
+		addresses = s.host.multiAddrStrByID(addrInfo.ID)
+	)
+
+	rtt, err := s.host.Ping(ctx, addrInfo)
+	if err != nil {
+		s.Logger.Error("Failed to ping peer", "peer_id", pid, "addresses", addresses, "err", err)
+		return
+	}
+
+	s.Logger.Info("Ping", "peer_id", pid, "addresses", addresses, "rtt", rtt.String())
 }
 
 func (s *Switch) isActive() bool {

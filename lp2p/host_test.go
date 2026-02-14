@@ -17,6 +17,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	corepeer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -39,7 +40,8 @@ func TestHost(t *testing.T) {
 	host1 := makeTestHost(t, ports[0], withLogging())
 	host2 := makeTestHost(t, ports[1], withLogging(), withBootstrapPeers([]config.LibP2PBootstrapPeer{
 		{
-			Host: fmt.Sprintf("127.0.0.1:%d", ports[0]),
+			// resolve host via hostname
+			Host: fmt.Sprintf("localhost:%d", ports[0]),
 			ID:   host1.ID().String(),
 		},
 	}))
@@ -190,6 +192,21 @@ func TestHost(t *testing.T) {
 	}
 
 	require.ElementsMatch(t, expectedEnvelopes, envelopes)
+
+	t.Run("Ping", func(t *testing.T) {
+		// ARRANGE
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// ACT
+		rtt, err := host1.Ping(ctx, host2.AddrInfo())
+
+		// ASSERT
+		require.NoError(t, err)
+		require.NotZero(t, rtt)
+
+		t.Logf("host1 -> host2 RTT: %s", rtt.String())
+	})
 }
 
 type testOpts struct {
@@ -352,4 +369,95 @@ func TestBootstrapPeers(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, bootstrapPeers)
 	})
+}
+
+func TestIsDNSAddr(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		raw    string
+		expect bool
+	}{
+		{
+			name:   "not a dns ipv4 tcp",
+			raw:    "/ip4/127.0.0.1/tcp/26656",
+			expect: false,
+		},
+		{
+			name:   "not a dns ipv6 udp quic",
+			raw:    "/ip6/::1/udp/26656/quic-v1",
+			expect: false,
+		},
+		{
+			name:   "not a dns p2p only",
+			raw:    "/p2p/12D3KooWB4s8mXvuQKrW8P3QnQfYeyH6Ydb8hQm6mdHh8W9c5QkA",
+			expect: false,
+		},
+		{
+			name:   "dns protocol only",
+			raw:    "/dns/seed.cometbft.com",
+			expect: true,
+		},
+		{
+			name:   "dns4 protocol",
+			raw:    "/dns4/seed.cometbft.com/tcp/26656",
+			expect: true,
+		},
+		{
+			name:   "dns6 protocol",
+			raw:    "/dns6/seed.cometbft.com/udp/26656/quic-v1",
+			expect: true,
+		},
+		{
+			name:   "dnsaddr protocol",
+			raw:    "/dnsaddr/bootstrap.cometbft.com",
+			expect: true,
+		},
+		{
+			name:   "dns with quic and p2p",
+			raw:    "/dns4/bootstrap.cometbft.com/udp/26656/quic-v1/p2p/12D3KooWB4s8mXvuQKrW8P3QnQfYeyH6Ydb8hQm6mdHh8W9c5QkA",
+			expect: true,
+		},
+		{
+			name:   "dns protocol appears later in path",
+			raw:    "/ip4/127.0.0.1/tcp/26656/dnsaddr/bootstrap.cometbft.com",
+			expect: true,
+		},
+		{
+			name:   "dns appears before ip protocol",
+			raw:    "/dns4/bootstrap.cometbft.com/ip4/127.0.0.1/tcp/26656",
+			expect: true,
+		},
+		{
+			name:   "localhost dns host",
+			raw:    "/dns/localhost/tcp/26656",
+			expect: true,
+		},
+		{
+			name:   "loopback not dns even with quic",
+			raw:    "/ip4/127.0.0.1/udp/26656/quic-v1",
+			expect: false,
+		},
+		{
+			name:   "not dns with circuit relay",
+			raw:    "/ip4/127.0.0.1/tcp/26656/p2p-circuit/p2p/12D3KooWB4s8mXvuQKrW8P3QnQfYeyH6Ydb8hQm6mdHh8W9c5QkA",
+			expect: false,
+		},
+		{
+			name:   "dns with websocket",
+			raw:    "/dns4/rpc.cometbft.com/tcp/443/tls/ws",
+			expect: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// ARRANGE
+			addr, err := ma.NewMultiaddr(tc.raw)
+			require.NoError(t, err)
+
+			// ACT
+			got := IsDNSAddr(addr)
+
+			// ASSERT
+			require.Equal(t, tc.expect, got)
+		})
+	}
 }

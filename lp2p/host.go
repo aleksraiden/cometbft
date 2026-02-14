@@ -3,7 +3,10 @@
 package lp2p
 
 import (
+	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/cometbft/cometbft/config"
 	cmcrypto "github.com/cometbft/cometbft/crypto"
@@ -12,7 +15,9 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/protocol/ping"
 	quic "github.com/libp2p/go-libp2p/p2p/transport/quic"
+	ma "github.com/multiformats/go-multiaddr"
 )
 
 // Host is a wrapper around the libp2p host.
@@ -25,6 +30,8 @@ type Host struct {
 	bootstrapPeers []BootstrapPeer
 
 	logger log.Logger
+
+	peerFailureHandlers []func(id peer.ID, err error)
 }
 
 // BootstrapPeer initial peers to connect to
@@ -69,6 +76,7 @@ func NewHost(config *config.P2PConfig, nodeKey cmcrypto.PrivKey, logger log.Logg
 		libp2p.Identity(privateKey),
 		libp2p.ListenAddrs(listenAddr),
 		libp2p.UserAgent("cometbft"),
+		libp2p.Ping(true),
 		libp2p.Transport(quic.NewTransport),
 	}
 
@@ -110,6 +118,30 @@ func (h *Host) Logger() log.Logger {
 	return h.logger
 }
 
+// Ping pings peers and logs RTT latency (blocking)
+// Keep in might that ping service might be disabled on the counterparty's side.
+func (h *Host) Ping(ctx context.Context, addrInfo peer.AddrInfo) (time.Duration, error) {
+	res := <-ping.Ping(ctx, h, addrInfo.ID)
+
+	return res.RTT, res.Error
+}
+
+func (h *Host) AddPeerFailureHandler(handler func(id peer.ID, err error)) {
+	h.peerFailureHandlers = append(h.peerFailureHandlers, handler)
+}
+
+// EmitPeerFailure emits a peer failure event to all registered handlers.
+// This semantic is over host.eventBus for simplicity.
+func (h *Host) EmitPeerFailure(id peer.ID, err error) {
+	for _, handler := range h.peerFailureHandlers {
+		go handler(id, err)
+	}
+}
+
+func (h *Host) multiAddrStrByID(id peer.ID) string {
+	return multiAddrStr(h.Peerstore().Addrs(id))
+}
+
 func BootstrapPeersFromConfig(config *config.P2PConfig) ([]BootstrapPeer, error) {
 	peers := make([]BootstrapPeer, 0, len(config.LibP2PConfig.BootstrapPeers))
 
@@ -137,4 +169,30 @@ func BootstrapPeersFromConfig(config *config.P2PConfig) ([]BootstrapPeer, error)
 	}
 
 	return peers, nil
+}
+
+// IsDNSAddr checks if the given multiaddr is a DNS address.
+func IsDNSAddr(addr ma.Multiaddr) bool {
+	for _, a := range addr {
+		code := a.Protocol().Code
+
+		if code == ma.P_DNS || code == ma.P_DNS4 || code == ma.P_DNS6 || code == ma.P_DNSADDR {
+			return true
+		}
+	}
+
+	return false
+}
+
+func multiAddrStr(addrs []ma.Multiaddr) string {
+	if len(addrs) == 0 {
+		return "<empty>"
+	}
+
+	parts := make([]string, len(addrs))
+	for i, addr := range addrs {
+		parts[i] = addr.String()
+	}
+
+	return strings.Join(parts, ", ")
 }
