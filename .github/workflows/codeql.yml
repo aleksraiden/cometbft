@@ -30,6 +30,7 @@ concurrency:
 
 jobs:
   analyze:
+    if: false #Bonton fork Это условие никогда не выполнится    
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
