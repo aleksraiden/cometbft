@@ -6,6 +6,7 @@ on:
 
 jobs:
   e2e-manual-multiversion-test:
+    if: false #Bonton fork Это условие никогда не выполнится
     # Run parallel jobs for the listed testnet groups (must match the
     # ./build/generator -g flag)
     strategy:
