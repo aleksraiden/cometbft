@@ -14,9 +14,14 @@
   ([\#5433](https://github.com/cometbft/cometbft/pull/5433))
 - `[blocksync]` fix(blocksync): `ExtendedCommit` verification via next blocks `LastCommit`
   ([\#5629](https://github.com/cometbft/cometbft/pull/5629))
+- [p2p] fix(lp2p): enforce stream max size ([\#5647](https://github.com/cometbft/cometbft/pull/5647))
+- `[metrics]` fix(metrics)!: peer_send_queue_size
+  ([\#5648](https://github.com/cometbft/cometbft/pull/5648))
+
 
 ### IMPROVEMENTS
 
+- `[ci]`: add lp2p testnet ([\#5643](https://github.com/cometbft/cometbft/pull/5643))
 - `[mempool]` feat!(mempool): introduce app-mempool & follower-mode. Improve lib-p2p integration (project Krakatoa).
 - `[mempool]` perf(mempool/cache): Optimize LRUTxCache.Remove to reduce lock contention and map access
    ([\#5244](https://github.com/cometbft/cometbft/pull/5244))
@@ -29,6 +34,7 @@
 
 ### FEATURES
 
+- `[p2p]` feat(consensus): add combined blocksync-to-consensus ingestion ([\#5633](https://github.com/cometbft/cometbft/pull/5633))
 - `[p2p]` feat(lp2p): implement Peer info methods (`NodeInfo`, `RemoteIP`, `RemoteAddr`, `IsOutbound`)
   for `/net_info` RPC compatibility with libp2p transport ([\#5619](https://github.com/cometbft/cometbft/pull/5619))
 - `[p2p]` feat(lp2p): stop/reconnect peers that failed ([\#5618](https://github.com/cometbft/cometbft/pull/5618))
