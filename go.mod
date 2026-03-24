@@ -35,7 +35,7 @@ require (
 	github.com/prometheus/common v0.67.5
 	github.com/rcrowley/go-metrics v0.0.0-20250401214520-65e299d6c5c9
 	github.com/rs/cors v1.11.1
-	github.com/sasha-s/go-deadlock v0.3.7
+	github.com/sasha-s/go-deadlock v0.3.9
 	github.com/snikch/goodman v0.0.0-20171125024755-10e37e294daa
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -46,7 +46,7 @@ require (
 	golang.org/x/net v0.52.0
 	golang.org/x/sync v0.20.0
 	gonum.org/v1/gonum v0.17.0
-	google.golang.org/grpc v1.79.2
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 )
 
