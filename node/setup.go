@@ -340,6 +340,43 @@ func createConsensusReactor(
 	if privValidator != nil {
 		consensusState.SetPrivValidator(privValidator)
 	}
+	// Checks for new feature related to BlockPart rational sending
+        opts := []cs.ReactorOption{ cs.ReactorMetrics(csMetrics) }
+
+        raw := strings.TrimSpace(config.P2P.ConsensusBlockPartSendPeerIDs)
+        switch raw {
+	case "":
+             // default: allow all => allowlist НЕ включаем
+        case "-":
+             // deny all block parts
+             opts = append(opts, cs.ReactorBlockPartSendPeerIDs(nil))
+        default:
+             // ожидаем "id1,id2,..." (включая возможные пробелы/переносы)
+             parts := strings.Split(raw, ",")
+             ids := make([]string, 0, len(parts))
+
+             for _, p := range parts {
+                 p = strings.TrimSpace(p)
+                 if p == "" {
+                     continue
+                 }
+                 // на всякий случай: если кто-то случайно подсунул "id@ip:port"
+                 if at := strings.IndexByte(p, '@'); at >= 0 {
+                     p = strings.TrimSpace(p[:at])
+                     if p == "" {
+                        continue
+                     }
+                 }
+                 ids = append(ids, p)
+             }
+
+             // Если после чистки список пустой — трактуем как deny-all
+             if len(ids) == 0 {
+                 opts = append(opts, cs.ReactorBlockPartSendPeerIDs(nil))
+             } else {
+                 opts = append(opts, cs.ReactorBlockPartSendPeerIDs(ids))
+             }
+        }
 
 	consensusReactor := cs.NewReactor(consensusState, waitForSync, cs.ReactorMetrics(csMetrics))
 	consensusReactor.SetLogger(logger)

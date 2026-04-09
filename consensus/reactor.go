@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"strings"
 
 	cmterrors "github.com/cometbft/cometbft/types/errors"
 
@@ -29,7 +30,7 @@ const (
 	VoteChannel        = byte(0x22)
 	VoteSetBitsChannel = byte(0x23)
 
-	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+	maxMsgSize = 4*1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
 
 	blocksToContributeToBecomeGoodPeer = 10000
 	votesToContributeToBecomeGoodPeer  = 10000
@@ -51,6 +52,9 @@ type Reactor struct {
 	initialHeight atomic.Int64
 
 	consensusParams atomic.Pointer[types.ConsensusParams] // copy of latest blocks consensus params
+
+	blockPartSendAllowEnabled bool
+	blockPartSendAllow        map[p2p.ID]struct{}
 
 	Metrics *Metrics
 }
@@ -207,6 +211,10 @@ func (conR *Reactor) InitPeer(peer p2p.Peer) p2p.Peer {
 func (conR *Reactor) AddPeer(peer p2p.Peer) {
 	if !conR.IsRunning() {
 		return
+	}
+	// Logging BlockPart sending state if disables
+	if conR.blockPartSendAllowEnabled && !conR.canSendBlockPartTo(peer.ID()) {
+		conR.Logger.Info("Consensus BlockPart sending disabled by allowlist", "peer_id", peer.ID())
 	}
 
 	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
@@ -624,18 +632,19 @@ OUTER_LOOP:
 		// Send block part?
 		// (Note these can match on hash so round doesn't matter)
 		// --------------------
-
-		if part, continueLoop := pickPartToSend(logger, conR.conS.blockStore, &rs, ps, prs); part != nil {
-			// part is not nil: we either succeed in sending it,
-			// or we were instructed not to sleep (busy-waiting)
-			if ps.SendPartSetHasPart(part, prs) || continueLoop {
+		allowParts := !conR.blockPartSendAllowEnabled || conR.canSendBlockPartTo(peer.ID())
+		if allowParts {
+			if part, continueLoop := pickPartToSend(logger, conR.conS.blockStore, &rs, ps, prs); part != nil {
+				// part is not nil: we either succeed in sending it,
+				// or we were instructed not to sleep (busy-waiting)
+				if ps.SendPartSetHasPart(part, prs) || continueLoop {
+					continue OUTER_LOOP
+				}
+			} else if continueLoop {
+				// part is nil but we don't want to sleep (busy-waiting)
 				continue OUTER_LOOP
 			}
-		} else if continueLoop {
-			// part is nil but we don't want to sleep (busy-waiting)
-			continue OUTER_LOOP
 		}
-
 		// --------------------
 		// Send proposal?
 		// (If height and round match, and we have a proposal and they don't)
@@ -1071,6 +1080,29 @@ func (conR *Reactor) StringIndented(indent string) string {
 // ReactorMetrics sets the metrics
 func ReactorMetrics(metrics *Metrics) ReactorOption {
 	return func(conR *Reactor) { conR.Metrics = metrics }
+}
+
+// New feature for managing of BlockParts sending
+func ReactorBlockPartSendPeerIDs(ids []string) ReactorOption {
+    return func(conR *Reactor) {
+        conR.blockPartSendAllowEnabled = true
+        conR.blockPartSendAllow = make(map[p2p.ID]struct{}, len(ids))
+        for _, s := range ids {
+            s = strings.TrimSpace(s)
+            if s == "" {
+                continue
+            }
+            conR.blockPartSendAllow[p2p.ID(s)] = struct{}{}
+        }
+    }
+}
+
+func (conR *Reactor) canSendBlockPartTo(peerID p2p.ID) bool {
+    if !conR.blockPartSendAllowEnabled {
+        return true // allow all (default)
+    }
+    _, ok := conR.blockPartSendAllow[peerID]
+    return ok
 }
 
 //-----------------------------------------------------------------------------

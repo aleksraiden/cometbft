@@ -172,7 +172,7 @@ func (vals *ValidatorSet) IncrementProposerPriority(times int32, round int32) {
 		
 		leaderByPower *Validator //выберем бекап лидера если наши магические офф 
 		
-		changeToBackupAtRound int32	= 3	//На каком раунде мы меняем лидера 
+		changeToBackupAtRound int32	= 6	//На каком раунде мы меняем лидера 
 	)
 
 	// 1. Увеличиваем приоритет всех валидаторов и находим лидеров

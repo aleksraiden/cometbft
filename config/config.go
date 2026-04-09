@@ -574,6 +574,11 @@ type P2PConfig struct {
 	// List of node IDs, to which a connection will be (re)established ignoring any existing limits
 	UnconditionalPeerIDs string `mapstructure:"unconditional_peer_ids"`
 
+	// Comma separated list of peer IDs allowed to receive outgoing consensus DataChannel
+	// (Proposal/BlockPart/ProposalPOL) from this node. "" => allow all, "-" => allow none.
+	// ConsensusDataSendPeerIDs string `mapstructure:"consensus_data_send_peer_ids"`
+	ConsensusBlockPartSendPeerIDs string `mapstructure:"consensus_blockpart_send_peer_ids"`
+
 	// Maximum pause when redialing a persistent peer (if zero, exponential backoff is used)
 	PersistentPeersMaxDialPeriod time.Duration `mapstructure:"persistent_peers_max_dial_period"`
 
@@ -698,6 +703,7 @@ func DefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
 		ListenAddress:                "tcp://0.0.0.0:26656",
 		ExternalAddress:              "",
+		ConsensusBlockPartSendPeerIDs: "",
 		AddrBook:                     defaultAddrBookPath,
 		AddrBookStrict:               true,
 		MaxNumInboundPeers:           40,
