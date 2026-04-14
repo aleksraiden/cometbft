@@ -6,7 +6,15 @@
 
 ### BUG FIXES
 
+- `[autopool]` Fix autopool worker message handling recovery
+  ([\#5775](https://github.com/cometbft/cometbft/pull/5775))
+- `[types]` Fix nil vote handling
+  ([\#5777](https://github.com/cometbft/cometbft/pull/5777))
+
 ### IMPROVEMENTS
+
+- `[node]` do not log experimental warning for libp2p if starting node at height 0
+  ([\#5776](https://github.com/cometbft/cometbft/pull/5776))
 
 ### FEATURES
 
