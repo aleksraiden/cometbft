@@ -45,6 +45,26 @@ func TestConfigValidateBasic(t *testing.T) {
 	assert.Error(t, cfg.ValidateBasic())
 }
 
+func TestDBTuningConfigValidateBasic(t *testing.T) {
+	cfg := config.DefaultDBTuningConfig()
+	require.NoError(t, cfg.ValidateBasic())
+
+	cfg.GoLevelDB.WriteL0PauseTrigger = cfg.GoLevelDB.WriteL0SlowdownTrigger - 1
+	require.ErrorContains(t, cfg.ValidateBasic(), "write_l0_pause_trigger")
+
+	cfg = config.DefaultDBTuningConfig()
+	cfg.GoLevelDB.Compression = "zstd"
+	require.ErrorContains(t, cfg.ValidateBasic(), "compression")
+
+	cfg = config.DefaultDBTuningConfig()
+	cfg.Pebble.L0StopWritesThreshold = cfg.Pebble.L0CompactionThreshold - 1
+	require.ErrorContains(t, cfg.ValidateBasic(), "l0_stop_writes_threshold")
+
+	cfg = config.DefaultDBTuningConfig()
+	cfg.Pebble.WALBytesPerSync = -1
+	require.ErrorContains(t, cfg.ValidateBasic(), "wal_bytes_per_sync")
+}
+
 func TestTLSConfiguration(t *testing.T) {
 	assert := assert.New(t)
 	cfg := config.DefaultConfig()

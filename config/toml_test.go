@@ -76,6 +76,10 @@ func assertValidConfig(t *testing.T, configFile string) {
 		"propose",
 		"max",
 		"genesis",
+		"[db_tuning.goleveldb]",
+		"[db_tuning.pebble]",
+		"block_cache_capacity",
+		"bytes_per_sync",
 	}
 	for _, e := range elems {
 		assert.Contains(t, configFile, e)

@@ -140,6 +140,46 @@ abci = "{{ .BaseConfig.ABCI }}"
 # so the app can decide if we should keep the connection or not
 filter_peers = {{ .BaseConfig.FilterPeers }}
 
+#######################################################
+###          Database Tuning Options                ###
+#######################################################
+[db_tuning.goleveldb]
+
+block_cache_capacity = {{ .DBTuning.GoLevelDB.BlockCacheCapacity }}
+open_files_cache_capacity = {{ .DBTuning.GoLevelDB.OpenFilesCacheCapacity }}
+block_size = {{ .DBTuning.GoLevelDB.BlockSize }}
+compaction_l0_trigger = {{ .DBTuning.GoLevelDB.CompactionL0Trigger }}
+compaction_table_size = {{ .DBTuning.GoLevelDB.CompactionTableSize }}
+compaction_total_size = {{ .DBTuning.GoLevelDB.CompactionTotalSize }}
+write_buffer = {{ .DBTuning.GoLevelDB.WriteBuffer }}
+write_l0_slowdown_trigger = {{ .DBTuning.GoLevelDB.WriteL0SlowdownTrigger }}
+write_l0_pause_trigger = {{ .DBTuning.GoLevelDB.WriteL0PauseTrigger }}
+iterator_sampling_rate = {{ .DBTuning.GoLevelDB.IteratorSamplingRate }}
+no_sync = {{ .DBTuning.GoLevelDB.NoSync }}
+compression = "{{ .DBTuning.GoLevelDB.Compression }}"
+compaction_table_size_multiplier = {{ .DBTuning.GoLevelDB.CompactionTableSizeMultiplier }}
+compaction_total_size_multiplier = {{ .DBTuning.GoLevelDB.CompactionTotalSizeMultiplier }}
+
+[db_tuning.pebble]
+
+bytes_per_sync = {{ .DBTuning.Pebble.BytesPerSync }}
+wal_bytes_per_sync = {{ .DBTuning.Pebble.WALBytesPerSync }}
+l0_compaction_threshold = {{ .DBTuning.Pebble.L0CompactionThreshold }}
+l0_compaction_file_threshold = {{ .DBTuning.Pebble.L0CompactionFileThreshold }}
+l0_stop_writes_threshold = {{ .DBTuning.Pebble.L0StopWritesThreshold }}
+lbase_max_bytes = {{ .DBTuning.Pebble.LBaseMaxBytes }}
+max_manifest_file_size = {{ .DBTuning.Pebble.MaxManifestFileSize }}
+max_open_files = {{ .DBTuning.Pebble.MaxOpenFiles }}
+mem_table_size = {{ .DBTuning.Pebble.MemTableSize }}
+mem_table_stop_writes_threshold = {{ .DBTuning.Pebble.MemTableStopWritesThreshold }}
+max_concurrent_compactions = {{ .DBTuning.Pebble.MaxConcurrentCompactions }}
+flush_split_bytes = {{ .DBTuning.Pebble.FlushSplitBytes }}
+level0_target_file_size = {{ .DBTuning.Pebble.Level0TargetFileSize }}
+experimental_l0_compaction_concurrency = {{ .DBTuning.Pebble.ExperimentalL0CompactionConcurrency }}
+experimental_compaction_debt_concurrency = {{ .DBTuning.Pebble.ExperimentalCompactionDebtConcurrency }}
+experimental_read_compaction_rate = {{ .DBTuning.Pebble.ExperimentalReadCompactionRate }}
+experimental_read_sampling_multiplier = {{ .DBTuning.Pebble.ExperimentalReadSamplingMultiplier }}
+
 
 #######################################################################
 ###                 Advanced Configuration Options                  ###

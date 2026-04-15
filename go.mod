@@ -200,6 +200,8 @@ require (
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
 
+replace github.com/cometbft/cometbft-db => ./cometbft-db
+
 retract (
 	// bumped go version in minor release
 	v0.38.14

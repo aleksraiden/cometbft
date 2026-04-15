@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cmterrors "github.com/cometbft/cometbft/types/errors"
+	leveldbopt "github.com/syndtr/goleveldb/leveldb/opt"
 
 	"github.com/cometbft/cometbft/version"
 )
@@ -85,6 +86,7 @@ type Config struct {
 	// Options for services
 	RPC             *RPCConfig             `mapstructure:"rpc"`
 	P2P             *P2PConfig             `mapstructure:"p2p"`
+	DBTuning        *DBTuningConfig        `mapstructure:"db_tuning"`
 	Mempool         *MempoolConfig         `mapstructure:"mempool"`
 	StateSync       *StateSyncConfig       `mapstructure:"statesync"`
 	BlockSync       *BlockSyncConfig       `mapstructure:"blocksync"`
@@ -100,6 +102,7 @@ func DefaultConfig() *Config {
 		BaseConfig:      DefaultBaseConfig(),
 		RPC:             DefaultRPCConfig(),
 		P2P:             DefaultP2PConfig(),
+		DBTuning:        DefaultDBTuningConfig(),
 		Mempool:         DefaultMempoolConfig(),
 		StateSync:       DefaultStateSyncConfig(),
 		BlockSync:       DefaultBlockSyncConfig(),
@@ -116,6 +119,7 @@ func TestConfig() *Config {
 		BaseConfig:      TestBaseConfig(),
 		RPC:             TestRPCConfig(),
 		P2P:             TestP2PConfig(),
+		DBTuning:        DefaultDBTuningConfig(),
 		Mempool:         TestMempoolConfig(),
 		StateSync:       TestStateSyncConfig(),
 		BlockSync:       TestBlockSyncConfig(),
@@ -148,6 +152,9 @@ func (cfg *Config) ValidateBasic() error {
 	if err := cfg.P2P.ValidateBasic(); err != nil {
 		return ErrInSection{Section: "p2p", Err: err}
 	}
+	if err := cfg.DBTuning.ValidateBasic(); err != nil {
+		return ErrInSection{Section: "db_tuning", Err: err}
+	}
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
 		return ErrInSection{Section: "mempool", Err: err}
 	}
@@ -173,6 +180,192 @@ func (cfg *Config) ValidateBasic() error {
 func (cfg *Config) CheckDeprecated() []string {
 	var warnings []string
 	return warnings
+}
+
+//-----------------------------------------------------------------------------
+// DBTuningConfig
+
+// DBTuningConfig defines backend-specific database tuning options.
+type DBTuningConfig struct {
+	GoLevelDB GoLevelDBTuningConfig `mapstructure:"goleveldb"`
+	Pebble    PebbleTuningConfig    `mapstructure:"pebble"`
+}
+
+// GoLevelDBTuningConfig defines tuning options for the goleveldb backend.
+type GoLevelDBTuningConfig struct {
+	BlockCacheCapacity            int     `mapstructure:"block_cache_capacity"`
+	OpenFilesCacheCapacity        int     `mapstructure:"open_files_cache_capacity"`
+	BlockSize                     int     `mapstructure:"block_size"`
+	CompactionL0Trigger           int     `mapstructure:"compaction_l0_trigger"`
+	CompactionTableSize           int     `mapstructure:"compaction_table_size"`
+	CompactionTotalSize           int     `mapstructure:"compaction_total_size"`
+	WriteBuffer                   int     `mapstructure:"write_buffer"`
+	WriteL0SlowdownTrigger        int     `mapstructure:"write_l0_slowdown_trigger"`
+	WriteL0PauseTrigger           int     `mapstructure:"write_l0_pause_trigger"`
+	IteratorSamplingRate          int     `mapstructure:"iterator_sampling_rate"`
+	NoSync                        bool    `mapstructure:"no_sync"`
+	Compression                   string  `mapstructure:"compression"`
+	CompactionTableSizeMultiplier float64 `mapstructure:"compaction_table_size_multiplier"`
+	CompactionTotalSizeMultiplier float64 `mapstructure:"compaction_total_size_multiplier"`
+}
+
+// PebbleTuningConfig defines tuning options for the pebbledb backend.
+type PebbleTuningConfig struct {
+	BytesPerSync                          int   `mapstructure:"bytes_per_sync"`
+	WALBytesPerSync                       int   `mapstructure:"wal_bytes_per_sync"`
+	L0CompactionThreshold                 int   `mapstructure:"l0_compaction_threshold"`
+	L0CompactionFileThreshold             int   `mapstructure:"l0_compaction_file_threshold"`
+	L0StopWritesThreshold                 int   `mapstructure:"l0_stop_writes_threshold"`
+	LBaseMaxBytes                         int64 `mapstructure:"lbase_max_bytes"`
+	MaxManifestFileSize                   int64 `mapstructure:"max_manifest_file_size"`
+	MaxOpenFiles                          int   `mapstructure:"max_open_files"`
+	MemTableSize                          int64 `mapstructure:"mem_table_size"`
+	MemTableStopWritesThreshold           int   `mapstructure:"mem_table_stop_writes_threshold"`
+	MaxConcurrentCompactions              int   `mapstructure:"max_concurrent_compactions"`
+	FlushSplitBytes                       int64 `mapstructure:"flush_split_bytes"`
+	Level0TargetFileSize                  int64 `mapstructure:"level0_target_file_size"`
+	ExperimentalL0CompactionConcurrency   int   `mapstructure:"experimental_l0_compaction_concurrency"`
+	ExperimentalCompactionDebtConcurrency int64 `mapstructure:"experimental_compaction_debt_concurrency"`
+	ExperimentalReadCompactionRate        int64 `mapstructure:"experimental_read_compaction_rate"`
+	ExperimentalReadSamplingMultiplier    int64 `mapstructure:"experimental_read_sampling_multiplier"`
+}
+
+// DefaultDBTuningConfig returns default-like database tuning options.
+func DefaultDBTuningConfig() *DBTuningConfig {
+	return &DBTuningConfig{
+		GoLevelDB: GoLevelDBTuningConfig{
+			BlockCacheCapacity:            leveldbopt.DefaultBlockCacheCapacity,
+			OpenFilesCacheCapacity:        leveldbopt.DefaultOpenFilesCacheCapacity,
+			BlockSize:                     leveldbopt.DefaultBlockSize,
+			CompactionL0Trigger:           leveldbopt.DefaultCompactionL0Trigger,
+			CompactionTableSize:           leveldbopt.DefaultCompactionTableSize,
+			CompactionTotalSize:           leveldbopt.DefaultCompactionTotalSize,
+			WriteBuffer:                   leveldbopt.DefaultWriteBuffer,
+			WriteL0SlowdownTrigger:        leveldbopt.DefaultWriteL0SlowdownTrigger,
+			WriteL0PauseTrigger:           leveldbopt.DefaultWriteL0PauseTrigger,
+			IteratorSamplingRate:          leveldbopt.DefaultIteratorSamplingRate,
+			Compression:                   "snappy",
+			CompactionTableSizeMultiplier: leveldbopt.DefaultCompactionTableSizeMultiplier,
+			CompactionTotalSizeMultiplier: leveldbopt.DefaultCompactionTotalSizeMultiplier,
+		},
+		Pebble: PebbleTuningConfig{
+			BytesPerSync:                          512 * 1024,
+			WALBytesPerSync:                       0,
+			L0CompactionThreshold:                 4,
+			L0CompactionFileThreshold:             500,
+			L0StopWritesThreshold:                 12,
+			LBaseMaxBytes:                         64 * 1024 * 1024,
+			MaxManifestFileSize:                   128 * 1024 * 1024,
+			MaxOpenFiles:                          1000,
+			MemTableSize:                          4 * 1024 * 1024,
+			MemTableStopWritesThreshold:           2,
+			MaxConcurrentCompactions:              1,
+			FlushSplitBytes:                       4 * 1024 * 1024,
+			Level0TargetFileSize:                  2 * 1024 * 1024,
+			ExperimentalL0CompactionConcurrency:   10,
+			ExperimentalCompactionDebtConcurrency: 1024 * 1024 * 1024,
+			ExperimentalReadCompactionRate:        16000,
+			ExperimentalReadSamplingMultiplier:    16,
+		},
+	}
+}
+
+// ValidateBasic performs basic validation.
+func (cfg *DBTuningConfig) ValidateBasic() error {
+	if cfg == nil {
+		return errors.New("missing db_tuning config")
+	}
+	if err := cfg.GoLevelDB.ValidateBasic(); err != nil {
+		return ErrInSection{Section: "goleveldb", Err: err}
+	}
+	if err := cfg.Pebble.ValidateBasic(); err != nil {
+		return ErrInSection{Section: "pebble", Err: err}
+	}
+	return nil
+}
+
+// ValidateBasic performs basic validation.
+func (cfg GoLevelDBTuningConfig) ValidateBasic() error {
+	switch {
+	case cfg.BlockCacheCapacity <= 0:
+		return cmterrors.ErrInvalidField{Field: "block_cache_capacity", Reason: "must be positive"}
+	case cfg.OpenFilesCacheCapacity <= 0:
+		return cmterrors.ErrInvalidField{Field: "open_files_cache_capacity", Reason: "must be positive"}
+	case cfg.BlockSize <= 0:
+		return cmterrors.ErrInvalidField{Field: "block_size", Reason: "must be positive"}
+	case cfg.CompactionL0Trigger <= 0:
+		return cmterrors.ErrInvalidField{Field: "compaction_l0_trigger", Reason: "must be positive"}
+	case cfg.CompactionTableSize <= 0:
+		return cmterrors.ErrInvalidField{Field: "compaction_table_size", Reason: "must be positive"}
+	case cfg.CompactionTotalSize <= 0:
+		return cmterrors.ErrInvalidField{Field: "compaction_total_size", Reason: "must be positive"}
+	case cfg.WriteBuffer <= 0:
+		return cmterrors.ErrInvalidField{Field: "write_buffer", Reason: "must be positive"}
+	case cfg.WriteL0SlowdownTrigger <= 0:
+		return cmterrors.ErrInvalidField{Field: "write_l0_slowdown_trigger", Reason: "must be positive"}
+	case cfg.WriteL0PauseTrigger < cfg.WriteL0SlowdownTrigger:
+		return cmterrors.ErrInvalidField{
+			Field:  "write_l0_pause_trigger",
+			Reason: "must be >= write_l0_slowdown_trigger",
+		}
+	case cfg.IteratorSamplingRate <= 0:
+		return cmterrors.ErrInvalidField{Field: "iterator_sampling_rate", Reason: "must be positive"}
+	case cfg.CompactionTableSizeMultiplier <= 0:
+		return cmterrors.ErrInvalidField{Field: "compaction_table_size_multiplier", Reason: "must be positive"}
+	case cfg.CompactionTotalSizeMultiplier <= 0:
+		return cmterrors.ErrInvalidField{Field: "compaction_total_size_multiplier", Reason: "must be positive"}
+	}
+
+	switch cfg.Compression {
+	case "snappy", "none":
+	default:
+		return cmterrors.ErrInvalidField{Field: "compression", Reason: "must be one of: snappy, none"}
+	}
+	return nil
+}
+
+// ValidateBasic performs basic validation.
+func (cfg PebbleTuningConfig) ValidateBasic() error {
+	switch {
+	case cfg.BytesPerSync <= 0:
+		return cmterrors.ErrInvalidField{Field: "bytes_per_sync", Reason: "must be positive"}
+	case cfg.WALBytesPerSync < 0:
+		return cmterrors.ErrNegativeField{Field: "wal_bytes_per_sync"}
+	case cfg.L0CompactionThreshold <= 0:
+		return cmterrors.ErrInvalidField{Field: "l0_compaction_threshold", Reason: "must be positive"}
+	case cfg.L0CompactionFileThreshold <= 0:
+		return cmterrors.ErrInvalidField{Field: "l0_compaction_file_threshold", Reason: "must be positive"}
+	case cfg.L0StopWritesThreshold < cfg.L0CompactionThreshold:
+		return cmterrors.ErrInvalidField{
+			Field:  "l0_stop_writes_threshold",
+			Reason: "must be >= l0_compaction_threshold",
+		}
+	case cfg.LBaseMaxBytes <= 0:
+		return cmterrors.ErrInvalidField{Field: "lbase_max_bytes", Reason: "must be positive"}
+	case cfg.MaxManifestFileSize <= 0:
+		return cmterrors.ErrInvalidField{Field: "max_manifest_file_size", Reason: "must be positive"}
+	case cfg.MaxOpenFiles <= 0:
+		return cmterrors.ErrInvalidField{Field: "max_open_files", Reason: "must be positive"}
+	case cfg.MemTableSize <= 0:
+		return cmterrors.ErrInvalidField{Field: "mem_table_size", Reason: "must be positive"}
+	case cfg.MemTableStopWritesThreshold <= 0:
+		return cmterrors.ErrInvalidField{Field: "mem_table_stop_writes_threshold", Reason: "must be positive"}
+	case cfg.MaxConcurrentCompactions <= 0:
+		return cmterrors.ErrInvalidField{Field: "max_concurrent_compactions", Reason: "must be positive"}
+	case cfg.FlushSplitBytes <= 0:
+		return cmterrors.ErrInvalidField{Field: "flush_split_bytes", Reason: "must be positive"}
+	case cfg.Level0TargetFileSize <= 0:
+		return cmterrors.ErrInvalidField{Field: "level0_target_file_size", Reason: "must be positive"}
+	case cfg.ExperimentalL0CompactionConcurrency <= 0:
+		return cmterrors.ErrInvalidField{Field: "experimental_l0_compaction_concurrency", Reason: "must be positive"}
+	case cfg.ExperimentalCompactionDebtConcurrency <= 0:
+		return cmterrors.ErrInvalidField{Field: "experimental_compaction_debt_concurrency", Reason: "must be positive"}
+	case cfg.ExperimentalReadCompactionRate <= 0:
+		return cmterrors.ErrInvalidField{Field: "experimental_read_compaction_rate", Reason: "must be positive"}
+	case cfg.ExperimentalReadSamplingMultiplier <= 0:
+		return cmterrors.ErrInvalidField{Field: "experimental_read_sampling_multiplier", Reason: "must be positive"}
+	}
+	return nil
 }
 
 //-----------------------------------------------------------------------------
@@ -701,27 +894,27 @@ type LibP2PLimits struct {
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
 func DefaultP2PConfig() *P2PConfig {
 	return &P2PConfig{
-		ListenAddress:                "tcp://0.0.0.0:26656",
-		ExternalAddress:              "",
+		ListenAddress:                 "tcp://0.0.0.0:26656",
+		ExternalAddress:               "",
 		ConsensusBlockPartSendPeerIDs: "",
-		AddrBook:                     defaultAddrBookPath,
-		AddrBookStrict:               true,
-		MaxNumInboundPeers:           40,
-		MaxNumOutboundPeers:          10,
-		PersistentPeersMaxDialPeriod: 0 * time.Second,
-		FlushThrottleTimeout:         10 * time.Millisecond,
-		MaxPacketMsgPayloadSize:      1024,    // 1 kB
-		SendRate:                     5120000, // 5 mB/s
-		RecvRate:                     5120000, // 5 mB/s
-		PexReactor:                   true,
-		LibP2PConfig:                 DefaultLibP2PConfig(),
-		SeedMode:                     false,
-		AllowDuplicateIP:             false,
-		HandshakeTimeout:             20 * time.Second,
-		DialTimeout:                  3 * time.Second,
-		TestDialFail:                 false,
-		TestFuzz:                     false,
-		TestFuzzConfig:               DefaultFuzzConnConfig(),
+		AddrBook:                      defaultAddrBookPath,
+		AddrBookStrict:                true,
+		MaxNumInboundPeers:            40,
+		MaxNumOutboundPeers:           10,
+		PersistentPeersMaxDialPeriod:  0 * time.Second,
+		FlushThrottleTimeout:          10 * time.Millisecond,
+		MaxPacketMsgPayloadSize:       1024,    // 1 kB
+		SendRate:                      5120000, // 5 mB/s
+		RecvRate:                      5120000, // 5 mB/s
+		PexReactor:                    true,
+		LibP2PConfig:                  DefaultLibP2PConfig(),
+		SeedMode:                      false,
+		AllowDuplicateIP:              false,
+		HandshakeTimeout:              20 * time.Second,
+		DialTimeout:                   3 * time.Second,
+		TestDialFail:                  false,
+		TestFuzz:                      false,
+		TestFuzzConfig:                DefaultFuzzConnConfig(),
 	}
 }
 
