@@ -6,6 +6,8 @@
 
 ### BUG FIXES
 
+- `[p2p]` fix race and goroutine leak in `TestTransportMultiplexAcceptNonBlocking` test
+  ([\#5878](https://github.com/cometbft/cometbft/pull/5878))
 - `[evidence]` fix flaky `TestReactorsGossipNoCommittedEvidence` test
   ([\#5870](https://github.com/cometbft/cometbft/pull/5870))
 - `[blocksync]` fix removeTimedoutPeers deadlock found via Byzantine prevote gossip race
@@ -19,6 +21,8 @@
 
 - `[blocksync]` validate blocksync response sender and signature count
   ([\#5860](https://github.com/cometbft/cometbft/pull/5860))
+- `[autofile]` skip fsync in `FlushAndSync` when no new data was written
+  ([\#5866](https://github.com/cometbft/cometbft/pull/5866))
 
 ### FEATURES
 
@@ -114,6 +118,7 @@
   ([\#5717](https://github.com/cometbft/cometbft/pull/5717))
 
 ### IMPROVEMENTS
+
 - `[consensus]` perf(consensus): skip fsync for unsigned internal messages (block parts) ([\#5695](https://github.com/cometbft/cometbft/pull/5695))
 - `[ci]`: add lp2p testnet ([\#5643](https://github.com/cometbft/cometbft/pull/5643))
 - `[mempool]` feat!(p2p): introduce follower-mode. Improve lib-p2p integraap access
