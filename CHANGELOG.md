@@ -6,6 +6,14 @@
 
 ### BUG FIXES
 
+- `[consensus]` Fix `double_sign_check_height = 1` performing no double-sign
+  checks due to off-by-one error in loop condition (`i < N` should be
+  `i <= N`). The value `1` now correctly checks the previous block as intended.
+  ([\#5668](https://github.com/cometbft/cometbft/pull/5668))
+- `[rpc/jsonrpc]` reject non-finite, fractional, and out-of-int64-range
+  numeric IDs in request decoding instead of silently saturating to
+  `math.MinInt`, which previously made distinct large IDs collide.
+  ([\#5861](https://github.com/cometbft/cometbft/pull/5861))
 - `[consensus]` a proposer now self-verifies its own vote extension before
   broadcasting its precommit, so an application whose `ExtendVote` and
   `VerifyVoteExtension` handlers are inconsistent halts the node with a clear
@@ -21,10 +29,14 @@
   ([\#5878](https://github.com/cometbft/cometbft/pull/5878))
 - `[evidence]` fix flaky `TestReactorsGossipNoCommittedEvidence` test
   ([\#5870](https://github.com/cometbft/cometbft/pull/5870))
+- `[blocksync]` fix flaky `TestBlockPoolBasic` deadlock under `-race`
+  ([\#5867](https://github.com/cometbft/cometbft/pull/5867))
 - `[blocksync]` fix removeTimedoutPeers deadlock found via Byzantine prevote gossip race
   ([\#5839](https://github.com/cometbft/cometbft/pull/5839))
 - `[mempool]` fix setRecheckFull/setDone race causing spurious ErrRecheckFull.
   ([\#5837](https://github.com/cometbft/cometbft/pull/5837))
+- `[abci]` fix deadlock when response callback re-enters the client.
+  ([\#5850](https://github.com/cometbft/cometbft/pull/5850))
 - `[node]` close partial listeners on startRPC failure
   ([\#5869](https://github.com/cometbft/cometbft/pull/5869))
 - `[consensus]` release cs.mtx before sending to statsMsgQueue
